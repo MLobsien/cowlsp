@@ -22,8 +22,6 @@ local function get_cow()
     table.insert(cow_args, #cow_args, M.config.cow or "default")
   end
 
-  vim.print(cow_args, M.config)
-
   return cow_args
 end
 

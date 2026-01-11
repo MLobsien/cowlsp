@@ -10,7 +10,7 @@ require("cowlsp").setup()
 
 ## Prerequisites
 
-- cowsay program in your path
+- cowsay program in your PATH
 
 ## Configuration
 
