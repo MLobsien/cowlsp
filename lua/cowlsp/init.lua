@@ -5,6 +5,7 @@ M.content = ""
 
 local function random_cow(args)
   if M.config.files then
+    table.insert(args, #args, "-f")
     table.insert(args, #args, M.config.files[math.random(#M.config.files)])
   else
     table.insert(args, #args, "-r")
@@ -12,22 +13,25 @@ local function random_cow(args)
 end
 
 local function get_cow()
-  local args = { "cowsay", "-e", M.config.eyes or "oo", "-T", M.config.tongue or "  ", "Lorem ipsum" }
+  local cow_args = { "cowsay", "-e", M.config.eyes or "oo", "-T", M.config.tongue or "  ", "Lorem ipsum" }
+
   if M.config.random then
-    random_cow(args)
+    random_cow(cow_args)
   else
-    table.insert(args, #args, "-f")
-    table.insert(args, #args, M.config.cow or "default")
+    table.insert(cow_args, #cow_args, "-f")
+    table.insert(cow_args, #cow_args, M.config.cow or "default")
   end
 
-  return args
+  vim.print(cow_args, M.config)
+
+  return cow_args
 end
 
-local function get_window_height(win_conf)
+local function get_window_last_row(win_conf)
   if win_conf.anchor:find("N") then
-    return win_conf.height
+    return win_conf.row + win_conf.height + 1
   else
-    return -win_conf.height - 1
+    return win_conf.row - 1
   end
 end
 
@@ -39,23 +43,40 @@ function M.attach_cow_window(content_buf)
 
       vim.schedule(function()
         local config = vim.api.nvim_win_get_config(M.content_win)
-        local width = 0
-        for _, line in ipairs(cow_lines) do
-          width = math.max(width, vim.fn.strdisplaywidth(line))
-        end
 
         local cow_buf = vim.api.nvim_create_buf(false, true)
         vim.api.nvim_buf_set_lines(cow_buf, 0, -1, false, cow_lines)
 
-        local content_height = get_window_height(config)
-        vim.print(config.anchor)
-        if content_height + config.row + 2 <= vim.o.lines - #cow_lines then
+        local cow_width = 0
+        for _, line in ipairs(cow_lines) do
+          cow_width = math.max(cow_width, vim.fn.strdisplaywidth(line))
+        end
+
+        local content_end = get_window_last_row(config)
+        local editor_end = vim.api.nvim_win_get_config(0).height
+
+        local cow_height = #cow_lines
+        local remaining = editor_end - content_end
+
+        if remaining < cow_height then
+          if config.row == content_end + 1 then
+            cow_height = remaining
+          else
+            content_end = content_end - cow_height
+
+            vim.api.nvim_win_set_config(M.content_win, {
+              height = config.height - cow_height
+            })
+          end
+        end
+
+        if cow_height > 1 then
           local cow_win = vim.api.nvim_open_win(cow_buf, false, {
             relative = "editor",
-            row = config.row + content_height + 2,
+            row = content_end + 1,
             col = config.col + 1,
-            width = width,
-            height = #cow_lines,
+            width = cow_width,
+            height = cow_height - 1,
             border = "none",
             style = "minimal",
             focusable = false
@@ -105,7 +126,7 @@ function M.hover()
       result = callback(responses)
     end
 
-    if #result > 0 and result[1] and string.len(result[1]) > 0 then
+    if #result > 0 and string.len(result[1]) > 0 then
       local hover_buf, hover_win = vim.lsp.util.open_floating_preview(
         result, "markdown", {
           focusable = true,
@@ -124,6 +145,8 @@ function M.hover()
 
       M.content_win = hover_win
       M.attach_cow_window(hover_buf)
+    else
+      print("No information available")
     end
   end)
 end
