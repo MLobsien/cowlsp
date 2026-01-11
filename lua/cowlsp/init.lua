@@ -27,9 +27,9 @@ end
 
 local function get_window_last_row(win_conf)
   if win_conf.anchor:find("N") then
-    return win_conf.row + win_conf.height + 1
+    return win_conf.row + win_conf.height + 2
   else
-    return win_conf.row - 1
+    return win_conf.row
   end
 end
 
@@ -57,7 +57,7 @@ function M.attach_cow_window(content_buf)
         local remaining = editor_end - content_end
 
         if remaining < cow_height then
-          if config.row == content_end + 1 then
+          if config.row == content_end then
             cow_height = remaining
           else
             content_end = content_end - cow_height
@@ -68,10 +68,10 @@ function M.attach_cow_window(content_buf)
           end
         end
 
-        if cow_height > 1 then
+        if cow_height > 1 and cow_width > 0 then
           local cow_win = vim.api.nvim_open_win(cow_buf, false, {
             relative = "editor",
-            row = content_end + 1,
+            row = content_end,
             col = config.col + 1,
             width = cow_width,
             height = cow_height - 1,
@@ -124,7 +124,7 @@ function M.hover()
       result = callback(responses)
     end
 
-    if #result > 0 and string.len(result[1]) > 0 then
+    if #result > 0 then
       local hover_buf, hover_win = vim.lsp.util.open_floating_preview(
         result, "markdown", {
           focusable = true,
