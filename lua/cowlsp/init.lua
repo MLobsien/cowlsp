@@ -53,28 +53,28 @@ function M.attach_cow_window(content_buf)
         local content_end = get_window_last_row(config)
         local editor_end = vim.api.nvim_win_get_config(0).height
 
-        local cow_height = #cow_lines
+        local cow_height = #cow_lines - 1
         local remaining = editor_end - content_end
 
         if remaining < cow_height then
           if config.row == content_end then
             cow_height = remaining
           else
-            content_end = content_end - cow_height
+            content_end = content_end - cow_height - 1
 
             vim.api.nvim_win_set_config(M.content_win, {
-              height = config.height - cow_height
+              height = config.height - cow_height - 1
             })
           end
         end
 
-        if cow_height > 1 and cow_width > 0 then
+        if cow_height > 0 and cow_width > 0 then
           local cow_win = vim.api.nvim_open_win(cow_buf, false, {
             relative = "editor",
             row = content_end,
             col = config.col + 1,
             width = cow_width,
-            height = cow_height - 1,
+            height = cow_height,
             border = "none",
             style = "minimal",
             focusable = false
