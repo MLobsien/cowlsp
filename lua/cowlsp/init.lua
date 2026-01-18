@@ -3,6 +3,11 @@ local M = {}
 M.content_win = nil
 M.content = ""
 
+require("cmp").event:on("menu_opened", function(evt)
+  local win_id = evt.window.entries_win.win
+  M.attach_cow_window(vim.api.nvim_win_get_buf(win_id), win_id)
+end)
+
 local function random_cow(args)
   if M.config.files then
     table.insert(args, #args, "-f")
@@ -13,13 +18,13 @@ local function random_cow(args)
 end
 
 local function get_cow()
-  local cow_args = { "cowsay", "-e", M.config.eyes or "oo", "-T", M.config.tongue or "  ", "Lorem ipsum" }
+  local cow_args = { "cowsay", "-e", M.config.eyes, "-T", M.config.tongue, "Lorem ipsum" }
 
   if M.config.random then
     random_cow(cow_args)
   else
     table.insert(cow_args, #cow_args, "-f")
-    table.insert(cow_args, #cow_args, M.config.cow or "default")
+    table.insert(cow_args, #cow_args, M.config.cow)
   end
 
   return cow_args
@@ -33,14 +38,14 @@ local function get_window_last_row(win_conf)
   end
 end
 
-function M.attach_cow_window(content_buf)
+function M.attach_cow_window(content_buf, content_win)
   vim.system(get_cow(), {}, function(result)
     if result.code == 0 then
       local cow_lines = vim.split(result.stdout, "\n")
       cow_lines = table.move(cow_lines, 4, #cow_lines, 1, {})
 
       vim.schedule(function()
-        local config = vim.api.nvim_win_get_config(M.content_win)
+        local config = vim.api.nvim_win_get_config(content_win)
 
         local cow_buf = vim.api.nvim_create_buf(false, true)
         vim.api.nvim_buf_set_lines(cow_buf, 0, -1, false, cow_lines)
@@ -62,7 +67,7 @@ function M.attach_cow_window(content_buf)
           else
             content_end = content_end - cow_height - 1
 
-            vim.api.nvim_win_set_config(M.content_win, {
+            vim.api.nvim_win_set_config(content_win, {
               height = config.height - cow_height - 1
             })
           end
@@ -116,7 +121,7 @@ function M.hover()
 
     if not callback then
       for _, client in ipairs(responses) do
-        if not client.err and client.result and client.result.contents then
+        if not client.err and client.result and client.result.contents and client.result.contents.value then
           table.insert(result, client.result.contents.value)
         end
       end
@@ -142,7 +147,7 @@ function M.hover()
       )
 
       M.content_win = hover_win
-      M.attach_cow_window(hover_buf)
+      M.attach_cow_window(hover_buf, hover_win)
     else
       print("No information available")
     end
@@ -150,11 +155,18 @@ function M.hover()
 end
 
 function M.setup(opts)
-  M.config = opts or {}
+  M.config = vim.tbl_extend("keep", opts, {
+    cow = "default",
+    key = "<S-k>",
+    eyes = "oo",
+    tongue = "  ",
+    random = false,
+    files = nil,
+  })
 
   vim.keymap.set(
     "n",
-    M.config.key or "<S-k>",
+    M.config.key,
     M.hover,
     {
       desc = "Cow speaks for LSP",
